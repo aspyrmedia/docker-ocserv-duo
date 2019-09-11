@@ -9,25 +9,18 @@ mkdir -p /etc/ocserv/defaults
 touch /etc/ocserv/defaults/user.conf
 touch /etc/ocserv/defaults/group.conf
 
-#sed -i -e 's@ikey = INTEGRATION_KEY@ikey = '"${DUO_IKEY}"'@' \
-#              -e 's@skey = SECRET_KEY@skey = '"${DUO_SKEY}"'@' \
-#              -e 's@host = API_HOSTNAME@host = '"${DUO_API}"'@' \
-#              /etc/duo/pam_duo.conf
-#echo "DUO MFA Intigration Key: ${DUO_IKEY}"
+printf "nas-identifier ${RADIUS_CLIENT_NAME}\n\
+authserver ${RADIUS_SERVER_ADDRESS}:${RADIUS_SERVER_PORT}\n\
+acctserver ${RADIUS_SERVER_ADDRESS}:${RADIUS_SERVER_PORT}\n\
+servers /etc/radcli/servers\n\
+dictionary /etc/radcli/dictionary\n\
+default_realm\n\
+radius_timeout 60\n\
+radius_retries 3\n\
+bindaddr *\n" > /etc/radcli/radiusclient.conf
 
-if [ ! -f /etc/ocserv/ocpasswd ]; then
-    touch /etc/ocserv/ocpasswd
-    echo "${VPN_PASSWORD}" | ocpasswd -c /etc/ocserv/ocpasswd "${VPN_USERNAME}"
-fi
-
-printf "uri ${LDAP_URI}\n\
-base ${LDAP_DN}\n\
-uid nslcd\n\
-gid nslcd\n" > /etc/nslcd.conf
-
-printf "passwd:   files ldap\n\
-group:  files ldap\n\
-shadow: files ldap\n" > /etc/nsswitch.conf
+printf "${RADIUS_SERVER_ADDRESS} ${RADIUS_SERVER_SECRET}\n" > /etc/radcli/servers
+touch /etc/radcli/dictionary
 
 if [ ! -f /etc/ocserv/ocserv.conf ]; then
     cp /etc/ocserv.sample /etc/ocserv/ocserv.conf
@@ -132,7 +125,5 @@ certtool --to-p12 \
          --password "${VPN_PASSWORD}"
 
 sed -i -e "s@^ipv4-network =.*@ipv4-network = ${VPN_NETWORK}@" \
-       -e "s@^ipv4-netmask =.*@ipv4-netmask = ${VPN_NETMASK}@" \
-       -e "s@^no-route =.*@no-route = ${LAN_NETWORK}/${LAN_NETMASK}@" /etc/ocserv/ocserv.conf
-
-echo "${VPN_PASSWORD}" | ocpasswd -c /etc/ocserv/ocpasswd "${VPN_USERNAME}"
+       -e "s@^ipv4-netmask =.*@@" \
+       -e "s@^no-route =.*@no-route = ${LAN_NETWORK}@" /etc/ocserv/ocserv.conf
